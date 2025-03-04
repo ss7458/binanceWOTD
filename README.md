@@ -3,6 +3,7 @@
 ## 项目简介
 
 每日一词是一款专业的 Wordle 游戏求解工具，基于信息熵算法，帮助用户轻松破解 Wordle 谜题，提供最优猜测建议和详细分析。无论是币安平台的每日一词活动还是其他 Wordle 类游戏，本工具都能提供强大的辅助功能。
+*适用于币安(binance)游戏WOTD每日一词游戏求解破解*
 
 ![Wordle求解器截图](https://github.com/ss7458/binanceWOTD/raw/main/screenshot.png)
 
