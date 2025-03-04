@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>每日一词 - Wordle 求解器</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>每日一词 - Wordle 求解器</h1>
+        <meta name="description" content="每日一词 - 专业的 Wordle 游戏求解工具(破解工具)，帮助您轻松破解 Wordle 谜题，提供最优猜测建议和详细分析。">
+        <meta name="keywords" content="币安 , binance , WOTD , 每日一词 , Wordle, Word finder, Wordle求解器, 破解 , 破解版 , Wordle助手, 单词游戏, 猜词游戏, 文字游戏, 单词猜谜, 信息熵, 最优猜测">
+        <div class="setup-group">
+            <label for="wordLength">选择单词长度: </label>
+            <input type="number" id="wordLength" value="5" min="3" max="15">
+            <button onclick="window.solver = new WordleSolver(); window.solver.initializeGame()">开始新游戏</button>
+            <button onclick="window.solver = new WordleSolver(); window.solver.continueGame()">继续存量游戏</button>
+        </div>
+
+        <!-- 添加历史记录输入弹框 -->
+        <div id="historyInputModal"
+            style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; max-width: 90%; width: 500px; max-height: 90vh; overflow-y: auto;">
+            <h3>输入历史猜测记录</h3>
+            <div class="history-input-guide">
+                <h4 style="color: #2196F3; margin-bottom: 10px;">输入格式说明</h4>
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="margin: 0 0 10px 0; color: #333;">每行输入一条记录，格式为: <code
+                            style="background: #e3f2fd; padding: 2px 6px; border-radius: 4px;">单词 反馈</code></p>
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-weight: bold;">示例：</span>
+                        <code style="background: #e3f2fd; padding: 2px 6px; border-radius: 4px;">hello 01122</code>
+                    </div>
+                    <div style="border-left: 4px solid #2196F3; padding-left: 10px;">
+                        <p style="margin: 0; color: #666;">反馈说明：</p>
+                        <ul style="margin: 5px 0 0 0; padding-left: 20px; color: #666;">
+                            <li>0 = 灰色（字母不存在）</li>
+                            <li>1 = 黄色（字母存在但位置错误）</li>
+                            <li>2 = 绿色（字母位置正确）</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <textarea id="historyInput"
+                style="width: 100%; height: 200px; margin: 10px 0; padding: 10px; box-sizing: border-box;"></textarea>
+            <div style="text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="document.getElementById('historyInputModal').style.display='none'">取消</button>
+                <button onclick="solver.processHistoryInput()">提交</button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <div class="loading-text">
+                正在加载单词列表... <span class="loading-progress" id="loadingProgress">0%</span>
+                <div id="loadingStage" style="font-size: 0.9em; color: #666; margin-top: 5px;"></div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div id="gameArea" style="display: none;">
+            <div class="dashboard">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalWords">0</div>
+                    <div class="stat-label">总单词数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="remainingWords">0</div>
+                    <div class="stat-label">剩余可能单词</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="guessCount">0</div>
+                    <div class="stat-label">已猜次数</div>
+                </div>
+            </div>
+
+            <div class="game-container">
+                <div class="game-main">
+                    <div id="result">等待游戏开始...</div>
+
+                    <div class="keyboard-hint">
+                        操作提示：
+                        <br>- 使用数字键 1/2/3 输入反馈（1=灰色，2=黄色，3=绿色）
+                        <br>- 使用方向键移动选择位置
+                        <br>- 回车键提交反馈
+                        <br>- R 键重置当前反馈
+                    </div>
+                    <div class="input-group">
+                        <div id="feedbackGrid" class="feedback-grid"></div>
+                        <div class="controls">
+                            <button id="submitFeedbackBtn" onclick="solver.submitFeedback()">提交反馈</button>
+                            <button onclick="solver.resetFeedback()">重置本次反馈</button>
+                            <button onclick="solver.undoLastGuess()">撤销上次反馈</button>
+                            <button onclick="solver.selectFromPossibleWords()">手动选择单词</button>
+                            <button onclick="solver.switchSuggestion()">换一个建议</button>
+                        </div>
+                    </div>
+                    <div id="gameStatus" class="game-status"></div>
+                </div>
+
+                <div class="game-sidebar">
+                    <div class="guess-history">
+                        <h3>猜测记录</h3>
+                        <div id="guessRecords"></div>
+                    </div>
+
+                    <div class="possible-words" id="possibleWords">
+                        <h3>可能的单词</h3>
+                        <div class="word-list" id="wordList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="solver.js" defer onerror="alert('加载solver.js失败，请检查文件是否存在并刷新页面重试')"></script>
+    <script defer>
+
+        // 页面加载时初始化
+        window.onload = function () {
+            document.getElementById('gameArea').style.display = 'block'; // 显示游戏区域
+            document.getElementById('result').textContent = '请选择单词长度并开始游戏'; // 显示初始提示
+        };
+
+
+
+// 键盘事件处理
+document.addEventListener('keydown', function (event) {
+    if (!solver || document.getElementById('gameArea').style.display === 'none') return;
+
+    const cells = document.querySelectorAll('.feedback-cell');
+
+    // 添加Ctrl+Z撤销功能
+    if (event.ctrlKey && event.key.toLowerCase() === 'z') {
+        const guessRecords = document.getElementById('guessRecords');
+        const lastGuess = guessRecords.firstChild;
+        if (lastGuess) {
+            // 移除最后一次猜测记录
+            guessRecords.removeChild(lastGuess);
+
+            // 更新统计信息
+            document.getElementById('guessCount').textContent =
+                document.querySelectorAll('.guess-item').length;
+
+            // 重新初始化可能的单词列表
+            solver.possibleWords = [...solver.allWords];
+
+            // 重新应用所有剩余的猜测记录
+            Array.from(document.querySelectorAll('.guess-item')).reverse().forEach(record => {
+                const patternCells = record.querySelectorAll('.pattern-cell');
+                if (patternCells && patternCells.length > 0) {
+                    // 从pattern-cell元素中提取单词
+                    const word = Array.from(patternCells).map(cell => cell.textContent.toLowerCase()).join('');
+                    // 从pattern-cell的类名中提取模式
+                    const pattern = Array.from(patternCells)
+                        .map(cell => cell.className.includes('pattern-2') ? '2' :
+                            cell.className.includes('pattern-1') ? '1' : '0')
+                        .join('');
+                    solver.updatePossibleWords(word, pattern);
+                }
+            });
+
+            // 更新界面
+            document.getElementById('remainingWords').textContent = solver.possibleWords.length;
+            solver.updatePossibleWordsList();
+            solver.getBestGuess().then(word => {
+                window.currentWord = word;
+                document.getElementById('result').innerHTML = `建议猜测: ${window.currentWord.toUpperCase()}`;
+                solver.createFeedbackGrid();
+            });
+
+            // 重置游戏状态
+            document.getElementById('gameStatus').className = 'game-status';
+            document.getElementById('gameStatus').textContent = '';
+        }
+        return;
+    }
+
+    switch (event.key) {
+        case '1':
+        case '2':
+        case '3':
+            if (cells[solver.currentCellIndex]) {
+                solver.updateCellState(cells[solver.currentCellIndex], parseInt(event.key) - 1);
+                solver.selectCell((solver.currentCellIndex + 1) % solver.wordLength);
+            }
+            break;
+        case 'ArrowLeft':
+            solver.selectCell((solver.currentCellIndex - 1 + solver.wordLength) % solver.wordLength);
+            break;
+        case 'ArrowRight':
+            solver.selectCell((solver.currentCellIndex + 1) % solver.wordLength);
+            break;
+        case 'Enter':
+            solver.submitFeedback();
+            break;
+        case 'r':
+        case 'R':
+            solver.resetFeedback();
+            break;
+    }
+});
+
+
+
+
+    </script>
+</body>
+
+</html>
